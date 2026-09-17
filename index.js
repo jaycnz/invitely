@@ -3,6 +3,8 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
+const { handleInviteInteraction } = require('./handlers/inviteInteractions');
+
 
 const client = new Client({
   intents: [
@@ -28,6 +30,11 @@ client.once('ready', () => {
 });
 
 client.on('interactionCreate', async (interaction) => {
+  if (interaction.isButton()) {
+    const handled = await handleInviteInteraction(interaction);
+    if (handled) return;
+  }
+
   if (interaction.isChatInputCommand()) {
     const command = client.commands.get(interaction.commandName);
     if (!command) return;

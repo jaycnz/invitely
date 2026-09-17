@@ -1,0 +1,96 @@
+const { getInvite, updateInvite } = require('../utils/inviteStore');
+const { revealedEmbed, lobbyEmbed, countConfirmed } = require('../utils/embeds');
+const { rsvpButtons } = require('../utils/components');
+
+async function refreshLobby(client, invite) {
+  try {
+    const channel = await client.channels.fetch(invite.channelId);
+    const msg = await channel.messages.fetch(invite.lobbyMessageId);
+    await msg.edit({ embeds: [lobbyEmbed(invite)] });
+  } catch (err) {
+    console.error('Failed to refresh lobby message:', err);
+  }
+}
+
+async function notifyHost(client, invite, text) {
+  try {
+    const host = await client.users.fetch(invite.hostId);
+    await host.send(text);
+  } catch (err) {
+    console.error('Failed to DM host:', err);
+  }
+}
+
+/**
+ * Call this from your interactionCreate listener for any button interaction.
+ * Returns true if it handled the interaction, false if it's not an invite button.
+ */
+async function handleInviteInteraction(interaction) {
+  if (!interaction.isButton()) return false;
+  const [action, inviteId] = interaction.customId.split('|');
+  if (!['invite_open', 'invite_confirm', 'invite_decline'].includes(action)) return false;
+
+  const invite = getInvite(inviteId);
+  if (!invite) {
+    await interaction.reply({ content: 'This invite no longer exists.', ephemeral: true });
+    return true;
+  }
+  const userId = interaction.user.id;
+  const entry = invite.invitees[userId];
+  if (!entry) {
+    await interaction.reply({ content: "This letter wasn't addressed to you.", ephemeral: true });
+    return true;
+  }
+
+  if (action === 'invite_open') {
+    if (entry.status === 'sent') {
+      updateInvite(inviteId, (inv) => {
+        inv.invitees[userId].status = 'opened';
+        inv.invitees[userId].openedAt = Date.now();
+      });
+      await notifyHost(interaction.client, invite, `📨 <@${userId}> opened your invite letter for **${invite.game}**.`);
+      await refreshLobby(interaction.client, getInvite(inviteId));
+    }
+    const fresh = getInvite(inviteId);
+    await interaction.update({ embeds: [revealedEmbed(fresh)], components: [rsvpButtons(inviteId)] });
+    return true;
+  }
+
+  if (action === 'invite_confirm' || action === 'invite_decline') {
+    if (entry.status === 'confirmed' || entry.status === 'declined') {
+      await interaction.reply({ content: `You already ${entry.status}.`, ephemeral: true });
+      return true;
+    }
+    if (action === 'invite_confirm' && countConfirmed(invite) >= invite.slots) {
+      await interaction.reply({ content: '😅 Sorry, the lobby just filled up.', ephemeral: true });
+      return true;
+    }
+
+    const newStatus = action === 'invite_confirm' ? 'confirmed' : 'declined';
+    updateInvite(inviteId, (inv) => {
+      inv.invitees[userId].status = newStatus;
+      inv.invitees[userId].respondedAt = Date.now();
+    });
+    const fresh = getInvite(inviteId);
+
+    await notifyHost(
+      interaction.client,
+      invite,
+      newStatus === 'confirmed'
+        ? `✅ <@${userId}> confirmed for **${invite.game}**! (${countConfirmed(fresh)}/${invite.slots} slots filled)`
+        : `❌ <@${userId}> can't make it to **${invite.game}**.`,
+    );
+    await refreshLobby(interaction.client, fresh);
+
+    await interaction.update({
+      embeds: [revealedEmbed(fresh)],
+      components: [],
+      content: newStatus === 'confirmed' ? "🎉 You're in! See you there." : 'Alright, maybe next time.',
+    });
+    return true;
+  }
+
+  return false;
+}
+
+module.exports = { handleInviteInteraction };
