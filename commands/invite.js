@@ -151,7 +151,7 @@ async function handleCancel(interaction) {
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName('invite')
+    .setName('invitely')
     .setDescription('Send personal game invites')
     .addSubcommand((sub) =>
       sub
