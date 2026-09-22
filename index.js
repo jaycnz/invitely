@@ -47,6 +47,18 @@ client.on('interactionCreate', async (interaction) => {
       else await interaction.reply(reply);
     }
   }
+
+  if (interaction.isAutocomplete()) {
+  const command = client.commands.get(interaction.commandName);
+  if (command?.autocomplete) {
+    try {
+      await command.autocomplete(interaction);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+  return;
+}
 });
 
 client.login(process.env.DISCORD_TOKEN);
