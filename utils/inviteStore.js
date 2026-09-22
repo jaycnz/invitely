@@ -43,4 +43,10 @@ function updateInvite(id, updater) {
   return invite;
 }
 
-module.exports = { createInvite, getInvite, updateInvite };
+function listInvites(filterFn) {
+  const data = load();
+  const all = Object.values(data.invites);
+  return filterFn ? all.filter(filterFn) : all;
+}
+
+module.exports = { createInvite, getInvite, updateInvite, listInvites };

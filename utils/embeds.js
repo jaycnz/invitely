@@ -58,4 +58,49 @@ function lobbyEmbed(invite) {
   return embed;
 }
 
-module.exports = { teaserEmbed, revealedEmbed, lobbyEmbed, countConfirmed };
+function cancelledLobbyEmbed(invite) {
+  return new EmbedBuilder()
+    .setColor(0x99a1ab)
+    .setTitle(`🎮 ${invite.game} — Lobby (Cancelled)`)
+    .setDescription(`This invite was cancelled by <@${invite.hostId}>.`);
+}
+
+function cancelledLetterEmbed(invite) {
+  return new EmbedBuilder()
+    .setColor(0x99a1ab)
+    .setTitle(`❌ ${invite.game} — Invite Cancelled`)
+    .setDescription(`**${invite.hostTag}** cancelled this invite.`);
+}
+
+function inviteListEmbed(invites) {
+  return new EmbedBuilder()
+    .setColor(0x5865f2)
+    .setTitle('📋 Your active invites')
+    .setDescription(
+      invites.length
+        ? invites
+            .map((inv) => `**${inv.game}** — <t:${inv.timeUnix}:f> — ${countConfirmed(inv)}/${inv.slots} confirmed`)
+            .join('\n')
+        : '_none_',
+    );
+}
+
+module.exports = {
+  teaserEmbed,
+  revealedEmbed,
+  lobbyEmbed,
+  countConfirmed,
+  cancelledLobbyEmbed,
+  cancelledLetterEmbed,
+  inviteListEmbed,
+};
+
+module.exports = {
+  teaserEmbed,
+  revealedEmbed,
+  lobbyEmbed,
+  countConfirmed,
+  cancelledLobbyEmbed,
+  cancelledLetterEmbed,
+  inviteListEmbed,
+};
