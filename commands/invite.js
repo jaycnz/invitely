@@ -11,10 +11,31 @@ const {
 } = require('../utils/embeds');
 const { openButton } = require('../utils/components');
 
-function parseTime(input) {
-  let date = new Date(input);
-  if (isNaN(date.getTime())) date = new Date(input.replace(' ', 'T'));
-  return isNaN(date.getTime()) ? null : date;
+function getOffsetMinutes(timeZone, date) {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone, timeZoneName: 'shortOffset' }).formatToParts(date);
+  const offsetStr = parts.find((p) => p.type === 'timeZoneName')?.value ?? 'GMT+0';
+  const match = offsetStr.match(/GMT([+-]\d+)(?::(\d+))?/);
+  if (!match) return 0;
+  const hours = parseInt(match[1], 10);
+  const minutes = match[2] ? parseInt(match[2], 10) : 0;
+  return hours * 60 + (hours < 0 ? -minutes : minutes);
+}
+
+function parseTime(input, timeZone = 'Pacific/Auckland') {
+  const trimmed = input.trim();
+
+  if (/([+-]\d{2}:\d{2}|Z)$/.test(trimmed)) {
+    const d = new Date(trimmed);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  const m = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})$/);
+  if (!m) return null;
+  const [, y, mo, d, h, mi] = m.map(Number);
+
+  const utcGuess = new Date(Date.UTC(y, mo - 1, d, h, mi));
+  const offsetMin = getOffsetMinutes(timeZone, utcGuess);
+  return new Date(utcGuess.getTime() - offsetMin * 60000);
 }
 
 function parseUserIds(input) {
@@ -39,8 +60,9 @@ async function handleCreate(interaction) {
   const timeInput = interaction.options.getString('time');
   const slots = interaction.options.getInteger('slots');
   const playersInput = interaction.options.getString('players');
+  const timezoneInput = interaction.options.getString('timezone') ?? 'Pacific/Auckland';
 
-  const date = parseTime(timeInput);
+  const date = parseTime(timeInput, timezoneInput);
   if (!date) {
     return interaction.reply({
       content: `⚠️ Couldn't parse "${timeInput}". Try "2026-09-20 19:00" or an ISO timestamp with offset like "2026-09-20T19:00:00+13:00".`,
@@ -169,6 +191,18 @@ module.exports = {
         )
         .addStringOption((o) =>
           o.setName('players').setDescription('Mention the players to invite (@user @user ...)').setRequired(true),
+        )
+                .addStringOption((o) =>
+        o
+            .setName('timezone')
+            .setDescription('Your timezone (defaults to Auckland)')
+            .setRequired(true)
+            .addChoices(
+            { name: 'Auckland (NZ)', value: 'Pacific/Auckland' },
+            { name: 'Sydney/Melbourne (AU)', value: 'Australia/Sydney' },
+            { name: 'Brisbane (AU)', value: 'Australia/Brisbane' },
+            { name: 'Perth (AU)', value: 'Australia/Perth' },
+            ),
         ),
     )
     .addSubcommand((sub) => sub.setName('list').setDescription('Show your active invites in this server'))
