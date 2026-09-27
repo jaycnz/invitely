@@ -70,7 +70,7 @@ async function handleCreate(interaction) {
     });
   }
 
-  const userIds = parseUserIds(playersInput).filter((id) => id !== interaction.user.id);
+  const userIds = parseUserIds(playersInput);
   if (userIds.length === 0) {
     return interaction.reply({
       content: '⚠️ No valid players found — mention them (@user) or give their user IDs.',
