@@ -43,6 +43,7 @@ async function handleInviteInteraction(interaction) {
   }
 
   if (action === 'invite_open') {
+    await interaction.deferUpdate();
     if (entry.status === 'sent') {
       updateInvite(inviteId, (inv) => {
         inv.invitees[userId].status = 'opened';
@@ -52,7 +53,7 @@ async function handleInviteInteraction(interaction) {
       await refreshLobby(interaction.client, getInvite(inviteId));
     }
     const fresh = getInvite(inviteId);
-    await interaction.update({ embeds: [revealedEmbed(fresh)], components: [rsvpButtons(inviteId)] });
+    await interaction.editReply({ embeds: [revealedEmbed(fresh)], components: [rsvpButtons(inviteId)] });
     return true;
   }
 
@@ -67,6 +68,7 @@ async function handleInviteInteraction(interaction) {
     }
 
     const newStatus = action === 'invite_confirm' ? 'confirmed' : 'declined';
+    await interaction.deferUpdate();
     updateInvite(inviteId, (inv) => {
       inv.invitees[userId].status = newStatus;
       inv.invitees[userId].respondedAt = Date.now();
@@ -82,7 +84,7 @@ async function handleInviteInteraction(interaction) {
     );
     await refreshLobby(interaction.client, fresh);
 
-    await interaction.update({
+    await interaction.editReply({
       embeds: [revealedEmbed(fresh)],
       components: [],
       content: newStatus === 'confirmed' ? "🎉 You're in! See you there." : 'Alright, maybe next time.',
